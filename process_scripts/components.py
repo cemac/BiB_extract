@@ -1,15 +1,18 @@
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
-import dash_table
+from .mdtext import *
+import dash_table,dash
 import time
 
 
 br = html.Br()
 center = {'margin':'auto','pad':'30px'}
 
-def md(txt):
-  return dcc.Markdown(txt)
+def hidden(hid):
+    return html.Div(id='h_'+hid, style={'display':'none'}, n_clicks=0)
+
+
   
 
 
@@ -26,8 +29,6 @@ def table(df,tid,style={'width':'100%'}):
     
     
 def daterange(dt, app):
-
-    
     return dcc.DatePickerRange(
         id='date',
         min_date_allowed=dt[0],
@@ -41,25 +42,13 @@ def daterange(dt, app):
         with_portal=True,
     )
 
-
-
-    @app.callback(Output("otherinfo", "children"), Input("date", "start_date"))
-    def spin(value):
-        time.sleep(5)
-        return value +'dfsdf'
     
     
 
 def multiselect(names):
     
     return dbc.Row([
-    md('''
-    #### Select / Remove Columns you are interested in. 
-    
-    - The UNIXTIME column will always be selected.
-    - If you plan on using locations, select the 'calculate locs' checkbox
-    - Similarly if you require bins, select the 'get bins' checkbox. 
-    '''),
+    itemselect,
     dcc.Dropdown(
         options=[
             {'label': i, 'value': i} for i in names
@@ -67,6 +56,7 @@ def multiselect(names):
         multi=True,
         value="UNIXTIME",
         style={'width':'100%'},
+        id = 'itemselect'
     )  
     ])
     
@@ -77,23 +67,15 @@ def postparse(contains):
     return dbc.FormGroup(
     [
         # dbc.Label("--- Additional Computation ---"),
-        md('''
-
-        #### Additional Options
-        Additional postprocessing of the dataset. Some options may add/remove additional columns in the SQL query. 
-        
-        These are the calculation of `GeoLocation`, Returning the `Bins`, Including `ALL` sensor types and removing of the `SERIAL` column
-        ''')  
+        additional_checkboxes 
         ,
         dbc.Checklist(
             options=[
-            {"label": "Calculate Locations", "value": 'loc', "disabled": 'LOC' not in contains},
-            {"label": "Return Bins", "value": 'bins', "disabled": 'BINS' not in contains},
-            {"label": "Include Static Results", "value": 'sensor', 'checked':True},
-            {"label": "Anonymise (Skips Serial)", "value": 'serial'},
+            {"label": "Calculate Locations", "value": 'get_loc', "disabled": 'LOC' not in contains},
+            {"label": "Return Bins", "value": 'get_bins', "disabled": 'BINS' not in contains},
+            {"label": "Include Static Results", "value": 'get_all'},
+            {"label": "Anonymise (Skips Serial)", "value": 'anon'},
             {"label": "GroupBy Hour", "value": 'group'},
-        
-            
             ],
             value=[],
             id="post_process",
@@ -103,6 +85,11 @@ def postparse(contains):
     ]
     )
 
-
+def button(id,name,clr='primary',disabled=False):
+    
+    stl = {'visibility':'visible'}
+    if disabled: stl = {'visibility':'hidden'}
+    
+    return dbc.Button([dbc.Spinner(size="sm",children=[html.Div(id= id+'_spinner'),name]) ], color=clr, block=True, id = id, outline = True, className="mr-1",style = stl )
 
       
