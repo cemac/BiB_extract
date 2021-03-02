@@ -12,7 +12,8 @@ def makesql(params,count=False):
     if type(cols) == str:
         cols=[cols]
     
-    
+    if 'limit' in sliders: pc['limit'] = 'LIMIT 2000'
+    else: pc['limit'] = '' 
     
     if 'get_loc' in sliders:
         cols.append('LOC')
@@ -37,4 +38,4 @@ def makesql(params,count=False):
         return "SELECT COUNT(UNIXTIME) from MEASUREMENTS where %(type)sUNIXTIME between %(start_date)d and %(end_date)d "%pc
     
     
-    return "SELECT %(cols)s from MEASUREMENTS where %(type)sUNIXTIME between %(start_date)d and %(end_date)d "%pc
+    return "SELECT %(cols)s from MEASUREMENTS where %(type)sUNIXTIME between %(start_date)d and %(end_date)d %(limit)s"%pc

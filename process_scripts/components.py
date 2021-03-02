@@ -62,7 +62,7 @@ def multiselect(names):
     
 
 
-def postparse(contains):
+def postparse(contains,haskey):
     
     return dbc.FormGroup(
     [
@@ -71,7 +71,8 @@ def postparse(contains):
         ,
         dbc.Checklist(
             options=[
-            {"label": "Calculate Locations", "value": 'get_loc', "disabled": 'LOC' not in contains},
+            {"label": "Debug: First 2000", "value": 'limit'},
+            {"label": "Calculate Locations", "value": 'get_loc', "disabled": not haskey},
             {"label": "Return Bins", "value": 'get_bins', "disabled": 'BINS' not in contains},
             {"label": "Include Static Results", "value": 'get_all'},
             {"label": "Anonymise (Skips Serial)", "value": 'anon'},

@@ -10,15 +10,26 @@ Author: D. Ellis, d.ellis@-nospam-@leeds.ac.uk @CEMAC
 ''' 
 Constants
 '''
-__DBLOC__ = 'merged.db'
-## change database location as required. This presumes that it is located within the current directory. 
-__SAVELOC__ = './'
+from config import __DBLOC__, __SAVELOC__, __KEY__
+
+
+'''
+Log Setup
+'''
+import sys
+if sys.version[0]!= '3':
+	sys.exit('You are not using python 3 - ** sadface **')
+
+from process_scripts import log_manager
+log = log_manager.getlog(__name__)
+info = log.info
+info('Importing Libraries')
 
 
 '''
 Imports
 '''
-import dash,sqlite3,sys
+import dash,sqlite3,os
 import dash_daq as daq
 import dash_html_components as html
 import dash_core_components as dcc
@@ -27,19 +38,16 @@ from dash.dependencies import Input, Output
 import pandas as pd
 from datetime import datetime
 import plotly.express as px
-from process_scripts import log_manager
 from process_scripts.components import *
 from process_scripts.mdtext import *
 from process_scripts.readsql import *
 from process_scripts.parameters import params, startup
-'''
-Additional Setup
-'''
-if sys.version[0]!= '3':
-	sys.exit('You are not using python 3 - ** sadface **')
-    
-log = log_manager.getlog(__name__)
-info = log.info
+if os.path.isfile(__KEY__): 
+    from process_scripts.decode import *
+    haskey=True
+else: 
+    log.warning('LOC FILE: %s not found!'%__KEY__)
+    haskey=False
 
 info('Loading Database')
 conn = sqlite3.connect(__DBLOC__,check_same_thread=False)# need this to work in flask
@@ -87,7 +95,7 @@ leftcol = dbc.Col(
                 timein,# md time desc 
                 daterange(dbrange,app), # date selector
                 br,br,
-                postparse(cols),
+                postparse(cols,haskey),
                 br,
                 multiselect(cols)
             ],)
@@ -244,12 +252,9 @@ def input_triggers_spinner(value):
     
     print(params)
 
-        
-        
-    print('diff')
     sqlquery = makesql(params,count=True)
     #"SELECT COUNT() from MEASUREMENTS where UNIXTIME between %(start_date)d and %(end_date)d"%params
-    print(sqlquery)
+    info(sqlquery)
     
     scount = conn.execute(sqlquery).fetchone()[0]
     
@@ -278,9 +283,18 @@ def input_triggers_spinner2(value):
 
     sqlquery = makesql(params)
     
+    
     df = pd.read_sql_query(sqlquery, conn)
+    info('extracted table')
+    
+    print(df,df.columns)
+    if 'get_loc' in params['sliders']:
+        info('decoding location data')
+        df,time = par_loc(df,False) # false keeps bad locations
+        info(time)
+    
 
-    print(df)
+    
 
     return {'visibility':'visible'},None
 
