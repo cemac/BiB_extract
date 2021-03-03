@@ -37,8 +37,30 @@ Get datetime for df
 def todate(x):
     return pd.to_datetime(x['UNIXTIME'],unit='s')
 def par_date(df):
-    df['DATE'] = df.parallel_apply(todate,axis=1)
+    df.index = df.parallel_apply(todate,axis=1)
+    return df
     
+
+
+
+def convert_bytes(num):
+    """
+    this function will convert bytes to MB.... GB... etc
+    """
+    for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
+        if num < 1024.0:
+            return "%3.1f %s" % (num, x)
+        num /= 1024.0
+
+
+def file_size(file_path):
+    """
+    this function will return the file size
+    """
+    if os.path.isfile(file_path):
+        file_info = os.stat(file_path)
+        return convert_bytes(file_info.st_size)
+
 
 
 
@@ -99,17 +121,18 @@ def par_loc(df,real=True):
     ''' 
     get values
     '''
+    
+    
     ret = df.LOC.parallel_map(parse)
 
     
     mid = time.time()
-    print('merging df')
+    print('\n merging df')
     
     '''
     merge the two together
     '''
-    
-    df = pd.concat( [df.drop('LOC',axis=1)  ,pd.DataFrame(data = ret.tolist(),columns='LAT LON ALT'.split())], axis =1  )
+    df = pd.concat( [df.drop('LOC',axis=1), pd.DataFrame(data = ret.tolist(),columns='LAT LON ALT'.split())], axis = 1  )
 
     '''
     get only the real results 
@@ -126,26 +149,5 @@ def par_loc(df,real=True):
     return df,times
 
 
-
-
-
-
-def convert_bytes(num):
-    """
-    this function will convert bytes to MB.... GB... etc
-    """
-    for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
-        if num < 1024.0:
-            return "%3.1f %s" % (num, x)
-        num /= 1024.0
-
-
-def file_size(file_path):
-    """
-    this function will return the file size
-    """
-    if os.path.isfile(file_path):
-        file_info = os.stat(file_path)
-        return convert_bytes(file_info.st_size)
 
 

@@ -42,8 +42,9 @@ from process_scripts.components import *
 from process_scripts.mdtext import *
 from process_scripts.readsql import *
 from process_scripts.parameters import params, startup
+from process_scripts.decode import *
+
 if os.path.isfile(__KEY__): 
-    from process_scripts.decode import *
     haskey=True
 else: 
     log.warning('LOC FILE: %s not found!'%__KEY__)
@@ -80,12 +81,8 @@ bginfo = dbc.Row(
             style = center,
             align="center",
             children = [
-                header,# introduction
-
-                
-                
-                
-                
+                banner,
+                header,# introduction        
             ],)
 
 leftcol = dbc.Col(
@@ -110,26 +107,29 @@ rightcol= dbc.Col(
             br,
             html.Div(children=[],id='precomputedata'),
             button('get_data','Extract',clr='success',disabled=True),
+            html.Div(children=[],id='postcomputedata'),
             button('get_csv','Download CSV',clr='secondary',disabled=True),
-            
+            html.Div(children=[],id='savedata'),
             ],)
 
 
 '''
 TABS
 '''
-tab = dbc.Card([
+tab_overview = dbc.Card([
     dbc.CardBody(
     [
-        dbc.Row([   md('## Instructions '),
+        dbc.Row([introtab,
         br,br, table(background,'info_table',{'width':'80%','margin':'auto'})]),
         br,
     ]),
+    ],
+    className="mt-3",
+)
+
+tab = dbc.Card([
     dbc.CardBody(
-    [    
-    br,
-        dbc.Row([leftcol,rightcol]),
-    ] # selection row
+    [  br,dbc.Row([leftcol,rightcol]),] # selection row
     )],
     className="mt-3",
 )
@@ -162,22 +162,13 @@ tab_lineplot = dbc.Card(
 
     
 tab_leaflet = dbc.Card(
-    dbc.CardBody(       
-        br
-    ),
+    dbc.CardBody( br),
     className="mt-3",
 )
     
 
 tabs = dbc.Tabs(
-    [
-        dbc.Tab(tab, label="Filter Parameters",tab_id='base'),
-        dbc.Tab(tab_table, label="View Table",tab_id ='table_tab'),
-        dbc.Tab(tab_lineplot, label="View Scatter",tab_id='scatter_tab'
-        ),
-        dbc.Tab(tab_leaflet, label="View Map",disabled=True),
-
-    ],
+    maketabs(tab_overview,tab,tab_table,tab_lineplot,tab_leaflet),
     active_tab='base',
     id='tabs'
 )
@@ -189,7 +180,7 @@ APP LAYOUT
 app.layout = html.Div(
 style=center,
  children = [
-
+ dcc.Location(id='url',refresh=False),
         bginfo,br,# first row
         
         tabs,
@@ -207,7 +198,7 @@ eo = Input('date', 'end_date')
 po = Input('post_process', 'value')
 io = Input('itemselect', 'value')
 
-@app.callback([Output("get_csv",'style'),Output("get_data",'style'),Output("precomputedata",'children')], [so,eo,po,io])
+@app.callback([Output("get_csv",'style'),Output("get_data",'style'),Output("precomputedata",'children'),Output("postcomputedata",'children')], [so,eo,po,io])
 def update_range(start_date, end_date,slide,cols): 
     global params,df
     
@@ -230,7 +221,7 @@ def update_range(start_date, end_date,slide,cols):
     params['columns'] = cols
         
     print(params['start_date'],params['end_date'])
-    return {'visibility':'hidden'},{'visibility':'hidden'},[]
+    return {'visibility':'hidden'},{'visibility':'hidden'},[],[]
     
 
 
@@ -242,12 +233,12 @@ def update_range(start_date, end_date,slide,cols):
 '''
 Precompute
 '''
-@app.callback([Output("get_csv",'style'),Output("get_data",'style'),Output("precomputedata",'children'),Output("get_size_spinner", "children")], Input("get_size", "n_clicks"))
+@app.callback([Output("get_csv",'style'),Output("get_data",'style'),Output("precomputedata",'children'),Output("get_size_spinner", "children"),Output("postcomputedata",'children')], Input("get_size", "n_clicks"))
 def input_triggers_spinner(value):
     global params,conn
     
     if params['start_date']== None: 
-        return {'visibility':'hidden'},{'visibility':'hidden'},[],None ## we are still loading
+        return {'visibility':'hidden'},{'visibility':'hidden'},[],None ,None## we are still loading
     
     
     print(params)
@@ -261,12 +252,12 @@ def input_triggers_spinner(value):
     print(scount)
     
     
-    sdata = {'SQL Query':makesql(params), '# Rows': scount, 'Size Estimate':'Manual * rownumber'}
+    sdata = {'SQL Query':makesql(params), '# Rows': scount}#, 'Size Estimate':'Manual * rownumber'}
     
     series = pd.DataFrame(data=zip(sdata,sdata.values()), columns=['Description','Value'])
     
     time.sleep(1)
-    return {'visibility':'hidden'},{'visibility':'visible'},table(series,tid = 'precompt'),None
+    return {'visibility':'hidden'},{'visibility':'visible'},table(series,tid = 'precompt'),[],None
 
 
 
@@ -275,11 +266,14 @@ def input_triggers_spinner(value):
 '''
 Extract
 '''
-@app.callback([Output("get_csv",'style'),Output("get_data_spinner", "children")], Input("get_data", "n_clicks"))
+@app.callback([Output("get_csv",'style'),Output("get_data_spinner", "children"),Output("postcomputedata",'children'),Output("itable_tab",'disabled'),Output("iscatter_tab",'disabled'),Output("imap_tab",'disabled')], Input("get_data", "n_clicks"))
 def input_triggers_spinner2(value):
     global params,conn,df
 
-    if params['start_date']== None: return {'visibility':'visible'},None ## we are still loading
+    if params['start_date']== None: return {'visibility':'visible'},None ,None,True,True,True
+    ## we are still loading
+
+
 
     sqlquery = makesql(params)
     
@@ -287,18 +281,63 @@ def input_triggers_spinner2(value):
     df = pd.read_sql_query(sqlquery, conn)
     info('extracted table')
     
+    df = par_date(df)
+    
     print(df,df.columns)
-    if 'get_loc' in params['sliders']:
+    
+    loc=False
+    group=False
+    
+    if 'group' in params['sliders']:
+        gc = 'PM1 PM3 PM2.5 PM10 T RH'.split()
+        df = df[list(filter(lambda x:x in gc ,df.columns))]
+        df['hour'] = df.index.to_period("H")
+        info(df['hour'])
+        df = df.groupby('hour').mean()
+        group=True
+        # info(df['hour'])
+
+    elif 'get_loc' in params['sliders']:
         info('decoding location data')
-        df,time = par_loc(df,False) # false keeps bad locations
+        df,time = par_loc(df.reset_index(),False) # false keeps bad locations
         info(time)
+        loc=True
     
+
+
+    sdata = {'Shape':str(df.shape), 'Size in Memory': convert_bytes(sys.getsizeof(df))}
+    series = pd.DataFrame(data=zip(sdata,sdata.values()), columns=['Description','Value'])
+
+    
+    gc = 'PM1 PM3 PM2.5 PM10 T RH'.split()
+    cols = list(filter(lambda x:x in gc ,df.columns))
+    dropdown = dbc.DropdownMenu(
+    label="Select Plot Variable",id='pltdrop',
+    children=[dbc.DropdownMenuItem(i, href = '#'+i) for i in cols],
+    )
 
     
 
-    return {'visibility':'visible'},None
 
+            
+        
+
+    return {'visibility':'visible'},None, [ br, md('''
     
+    #### Select what to plot: (first 2000 values)'''), dropdown, br, table(series,tid = 'postcompt'),],False,not group, not loc
+
+
+
+
+
+
+
+@app.callback([Output("pltdrop", "active")], [Input('url','pathname')])
+def hash(args):
+
+        print(args)
+
+        return [args]
     
 
 
@@ -314,7 +353,7 @@ def input_triggers_spinner3(value):
     
     loc = __SAVELOC__+'data.csv'
     df.to_csv(loc)
-    return ['Saved']
+    return ['Saved '+ file_size(loc)]
 
 
 
@@ -324,22 +363,28 @@ def input_triggers_spinner3(value):
 ''' 
 Table
 '''
-@app.callback([Output("table_spin", "children"),Output("scatter_spin", "children")], Input("tabs", "active_tab"))
-def tabulate(activetabs):
+@app.callback([Output("table_spin", "children"),Output("scatter_spin", "children")], [Input("tabs", "active_tab"),Input('url','hash')])
+def tabulate(activetabs,hashkey):
     global df
     
+    print(activetabs,hashkey)
     
     if type(df) != type(None):
         if activetabs == 'table_tab': 
 
-            return ['Showing the first 1000 values of the dataframe',br,table(df.iloc[:1000],'tab_table',{'width':'80%','margin':'auto'})],None
+            newdf = df.head(2000).reset_index()
+            try: newdf.drop(['UNIXTIME'],inplace=True)
+            except: None
+            
+            print(newdf)
+            return ['Showing the first 2000 values of the dataframe',br,table(newdf,'tab_table',{'width':'80%','margin':'auto'})],None
 
 
         elif activetabs == 'scatter_tab': 
             
             
-            fig = px.scatter(df.iloc[:2000], x="PM1", y="PM10",
-                             size="PM1", color="SERIAL", hover_name="SERIAL",
+            fig = px.scatter(df.head(2000), x="index", y=hashkey,
+                             size="3", color="SERIAL", hover_name="SERIAL",
                              log_x=False, size_max=6)
 
             g = dcc.Graph(
@@ -354,6 +399,20 @@ def tabulate(activetabs):
 
     else:
         return None,None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 '''

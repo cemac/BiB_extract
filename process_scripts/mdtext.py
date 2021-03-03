@@ -4,19 +4,15 @@ def md(txt,id=''):
   return dcc.Markdown(txt,id=id)
   
 header = md('''
-# BBSensor Database browser
+# BiBSensor Database browser
+
 This is a simple browser and plotter app for the Born in Bradford Portable Sensor database. 
-
-In order to decode the positional data you need to have the bbkey directory and decryption key within your HOME `(~/)` 
-
 ''')  
 
 timein = md('''
 
 #### Time inputs
-Please select a date range from the calandar view below. This consists of the 
-
-`start date` -> `end date`
+Please select a date range from the calandar view below: `start date` -> `end date`
 
 ''')  
 
@@ -45,3 +41,18 @@ instructions = '''
 
 
 '''
+
+
+introtab =  md('''
+## Instructions 
+
+*Before using please read the README page* 
+
+A general overview of the dataset is provided below.
+To select data from it, click on the `View Table` tab above!
+''')
+
+
+
+
+
