@@ -34,8 +34,11 @@ import dash_daq as daq
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
+import dash_leaflet as dl
+
 from dash.dependencies import Input, Output
 import pandas as pd
+import matplotlib.pyplot as plt
 from datetime import datetime
 import plotly.express as px
 from process_scripts.components import *
@@ -103,6 +106,7 @@ rightcol= dbc.Col(
             children = [
             br,br,
             md(instructions,id='buttoninstructions'),
+            br,
             button('get_size','Precompute Fetch'),
             br,
             html.Div(children=[],id='precomputedata'),
@@ -266,7 +270,13 @@ def input_triggers_spinner(value):
 '''
 Extract
 '''
-@app.callback([Output("get_csv",'style'),Output("get_data_spinner", "children"),Output("postcomputedata",'children'),Output("itable_tab",'disabled'),Output("iscatter_tab",'disabled'),Output("imap_tab",'disabled')], Input("get_data", "n_clicks"))
+@app.callback([Output("get_csv",'style'),
+Output("get_data_spinner", "children"),
+Output("postcomputedata",'children'),
+Output("itable_tab",'disabled'),
+Output("iscatter_tab",'disabled'),
+Output("imap_tab",'disabled')],
+ Input("get_data", "n_clicks"))
 def input_triggers_spinner2(value):
     global params,conn,df
 
@@ -288,16 +298,16 @@ def input_triggers_spinner2(value):
     loc=False
     group=False
     
-    if 'group' in params['sliders']:
-        gc = 'PM1 PM3 PM2.5 PM10 T RH'.split()
-        df = df[list(filter(lambda x:x in gc ,df.columns))]
-        df['hour'] = df.index.to_period("H")
-        info(df['hour'])
-        df = df.groupby('hour').mean()
-        group=True
-        # info(df['hour'])
+    # if 'group' in params['sliders']:
+    #     gc = 'PM1 PM3 PM2.5 PM10 T RH'.split()
+    #     df = df[list(filter(lambda x:x in gc ,df.columns))]
+    #     df['hour'] = df.index.to_period("H")
+    #     info(df['hour'])
+    #     df = df.groupby('hour').mean()
+    #     group=True
+    #     # info(df['hour'])
 
-    elif 'get_loc' in params['sliders']:
+    if 'get_loc' in params['sliders']:
         info('decoding location data')
         df,time = par_loc(df.reset_index(),False) # false keeps bad locations
         info(time)
@@ -311,34 +321,33 @@ def input_triggers_spinner2(value):
     
     gc = 'PM1 PM3 PM2.5 PM10 T RH'.split()
     cols = list(filter(lambda x:x in gc ,df.columns))
+    
+    
     dropdown = dbc.DropdownMenu(
     label="Select Plot Variable",id='pltdrop',
     children=[dbc.DropdownMenuItem(i, href = '#'+i) for i in cols],
     )
 
-    
 
 
-            
-        
 
     return {'visibility':'visible'},None, [ br, md('''
     
-    #### Select what to plot: (first 2000 values)'''), dropdown, br, table(series,tid = 'postcompt'),],False,not group, not loc
+    #### Select what to plot: (first 2000 values)'''), dropdown, br, table(series,tid = 'postcompt'),],False,False, not loc
 
 
 
 
 
-
-
-@app.callback([Output("pltdrop", "active")], [Input('url','pathname')])
-def hash(args):
-
-        print(args)
-
-        return [args]
-    
+# 
+# 
+# @app.callback([Output("pltdrop", "active")], [Input('url','pathname')])
+# def hash(args):
+# 
+#         print(args)
+# 
+#         return [args]
+# 
 
 
 
@@ -361,15 +370,20 @@ def input_triggers_spinner3(value):
 
 
 ''' 
-Table
+TAB VIEW
 '''
 @app.callback([Output("table_spin", "children"),Output("scatter_spin", "children")], [Input("tabs", "active_tab"),Input('url','hash')])
 def tabulate(activetabs,hashkey):
     global df
     
-    print(activetabs,hashkey)
+    print
+    (activetabs,hashkey)
     
     if type(df) != type(None):
+        
+        # '''
+        # table 
+        # '''
         if activetabs == 'table_tab': 
 
             newdf = df.head(2000).reset_index()
@@ -380,19 +394,85 @@ def tabulate(activetabs,hashkey):
             return ['Showing the first 2000 values of the dataframe',br,table(newdf,'tab_table',{'width':'80%','margin':'auto'})],None
 
 
+        # '''
+        # scatter_tab
+        # '''
         elif activetabs == 'scatter_tab': 
+        
+            gc = 'PM1 PM3 PM2.5 PM10 UNIXTIME'.split()
+            cols = list(filter(lambda x:x in gc ,df.columns))
+            
+            dfp = df[cols] 
+            dfp['hour'] = df.index.hour + (df.index.minute/15)//4
             
             
-            fig = px.scatter(df.head(2000), x="index", y=hashkey,
-                             size="3", color="SERIAL", hover_name="SERIAL",
-                             log_x=False, size_max=6)
+            dfp = dfp.groupby('hour').mean().reset_index()
 
-            g = dcc.Graph(
-                    id='plot',
-                    figure=fig
-                )
-                
-            return None,['Plotting first 2000 points', br,br,g]
+            
+            print(dfp)
+            
+            sizes = {'PM1':2,'PM2.5':3, 'PM3':3, 'PM10':10}
+            alpha = 0.8
+
+
+            for i in 'PM1 PM3 PM2.5 PM10'.split()[::-1]:
+                if i in dfp.columns: 
+                    # print(i)
+                    try: 
+                        ax = dfp.plot(kind='scatter',x='hour', y=i, c='UNIXTIME',colormap='viridis',ax=ax,colorbar=False,label=i, s = sizes[i],alpha = alpha)
+                    except:
+                        ax = dfp.plot(kind='scatter',x='hour', y=i, c='UNIXTIME',colormap='viridis', label=i, s = sizes[i],alpha=alpha)
+                        
+                        
+            plt.legend()
+            plt.tight_layout()
+            plt.xlabel('HOUR')
+            plt.ylabel('Avg value')
+            
+            '''
+            save to a base 64str
+            '''
+            import base64
+            import io
+            IObytes = io.BytesIO()    
+            plt.savefig(IObytes,  format='png')
+            plt.close()
+            IObytes = base64.b64encode(IObytes.getvalue()).decode("utf-8").replace("\n", "")
+            plot = html.Img(src="data:image/png;base64,{}".format(IObytes))
+
+
+            return None,[md('# A grouped summary of the following dataframe:'),br,br,table(dfp.describe().reset_index(),'descplot'), br,br,plot]
+
+
+        elif activetabs == 'map_tab': 
+
+            
+            dfp = df['LAT LON'.split()][np.isnan(df.LAT)==False]
+            print(dfp)
+        
+            # 
+            # 
+            # dfp['hour'] = dfp.index.hour + (dfp.index.minute/15)//4
+            # dfp = dfp.groupby('hour').first().reset_index()
+            
+            print(dfp)
+            
+            mid = [dfp.LAT.mean(), dfp.LON.mean()]
+            
+            markers = [dl.CircleMarker( dl.Tooltip(str(row)), center=[row[1].LAT, row[1].LON], radius=30, id=str(row[0]), stroke=True,color='red',weight=1,fillColor='blue' ) for row in df.iterrows()]
+            
+            plot =  html.Div(
+                id="bibmap",
+                children=
+                dl.Map([dl.TileLayer(),dl.LayerGroup(markers,id='markers')],    
+            #dl.WMSTileLayer(url="https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi",
+                                                    # layers="nexrad-n0r-900913", format="image/png", transparent=True)],
+                   center=mid, zoom=10,
+                   style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"})
+            )
+            
+            return None,[md('# Location overview  '), br,br,plot]
+
 
         else:
             return None,None
@@ -405,6 +485,26 @@ def tabulate(activetabs,hashkey):
 
 
 
+
+# 
+# '''
+# app.layout = html.Div([
+#     dcc.Location(id='url'),
+#     html.Div(id='viewport-container')
+# ])
+# 
+# app.clientside_callback(
+#     """
+#     function(href) {
+#         var w = window.innerWidth;
+#         var h = window.innerHeight;
+#         return {'height': h, 'width': w};
+#     }
+#     """,
+#     Output('viewport-container', 'children'),
+#     Input('url', 'href')
+# )
+# '''
 
 
 

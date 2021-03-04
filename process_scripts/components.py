@@ -81,7 +81,7 @@ def postparse(contains,haskey):
             {"label": "Return Bins", "value": 'get_bins', "disabled": 'BINS' not in contains},
             {"label": "Include Static Results", "value": 'get_all'},
             {"label": "Anonymise (Skips Serial)", "value": 'anon'},
-            {"label": "Hour Avg. (PM 1,2.5,10,T,RH only)", "value": 'group'},
+            {"label": "Hour Avg. (PM 1,2.5,10,T,RH only)", "value": 'group','disabled':True},
             ],
             value=[],
             id="post_process",
@@ -115,9 +115,9 @@ def maketabs(tab_overview,tab,tab_table,tab_lineplot,tab_leaflet,table=False, sc
         dbc.Tab(tab_overview, label="Overview",tab_id='base'),
         dbc.Tab(tab, label="Filter Parameters",tab_id='filter'),
         dbc.Tab(tab_table, label="View Table",tab_id ='table_tab',id='itable_tab',disabled=not table),
-        dbc.Tab(tab_lineplot, label="View Scatter",tab_id='iscatter_tab', id='scatter_tab', disabled=not scatter
+        dbc.Tab(tab_lineplot, label="View Scatter",tab_id='scatter_tab', id='iscatter_tab', disabled=not scatter
         ),
-        dbc.Tab(tab_leaflet, label="View Map",id='imap_tab', disabled=not tmap),
+        dbc.Tab(tab_leaflet, label="View Map",id='imap_tab',tab_id='map_tab', disabled=not tmap),
 
     ]
     

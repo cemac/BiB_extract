@@ -1,11 +1,21 @@
 # BiB_extract
 An extraction app for the encrypted sensor databases. 
 
+# Quickstart
+- `conda activate bib`
+- setup `config.py `
+- `python app.py`
+- navigate to `http://127.0.0.1:8050/` in a web browser - chrome works well
+
+#### Port in use error 
+If you get a message that the port is already in use, that means a previous version of the code has not been terminated cleanly. Use (with caution!)`pkill -9 python` for linux or windows task manager to close all python instances before trying again. 
+
+
 
 ## Install 
 1. Install anaconda python from continum.io
 2. Open command line/terminal 
-3. Create conda environment: 
+3. Create conda environment: `conda env create -f bibview.yml`
 
 
 ## Configuration `config.py`
@@ -22,6 +32,7 @@ The `__DBLOC__` in `config.py` sets the location of the database we are interest
 
 ## save location
 If you plan on saving any extracted data, you will need to set the directory in which you want the output CSV to be saved. 
+
 
 
 

@@ -5,7 +5,7 @@ A configuration file that can be edited depending on the users configuration
 
 
 #####################################
-__DBLOC__ = './merged.db'
+__DBLOC__ = './sensor.db'
 ## change database location as required. 
 ######################################
 

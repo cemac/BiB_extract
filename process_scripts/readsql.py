@@ -35,7 +35,7 @@ def makesql(params,count=False):
     
     
     if count:
-        return "SELECT COUNT(UNIXTIME) from MEASUREMENTS where %(type)sUNIXTIME between %(start_date)d and %(end_date)d "%pc
+        return "SELECT COUNT(UNIXTIME) from MEASUREMENTS where %(type)sUNIXTIME between %(start_date)d and %(end_date)d %(limit)s"%pc
     
     
     return "SELECT %(cols)s from MEASUREMENTS where %(type)sUNIXTIME between %(start_date)d and %(end_date)d %(limit)s"%pc

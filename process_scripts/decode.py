@@ -146,7 +146,7 @@ def par_loc(df,real=True):
     
     times = 'This took %.2f minutes, of which decryption was %.2f minutes'%(total,parsetime)
 
-    return df,times
+    return df.set_index('index'),times
 
 
 

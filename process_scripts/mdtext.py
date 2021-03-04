@@ -49,7 +49,8 @@ introtab =  md('''
 *Before using please read the README page* 
 
 A general overview of the dataset is provided below.
-To select data from it, click on the `View Table` tab above!
+- To filter data use the `Filter Parameters` tab
+- Once done the data can be viewed using the additional tabs; e.g. `View Table`
 ''')
 
 
