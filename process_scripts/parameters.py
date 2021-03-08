@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 params = {
 
 'start_date': None,
@@ -13,7 +12,8 @@ params = {
 # 'get_all': False,
 # 'anon': False,
 # 'group': False, 
-'columns':['UNIXTIME']
+'columns':['UNIXTIME'],
+'precompute':False,
 
 }
 
@@ -32,11 +32,34 @@ def startup(conn,info):
 
 
     info('Calculating time range...')
-    dbrange = pd.to_datetime([conn.execute("SELECT %s(UNIXTIME) from MEASUREMENTS"%i).fetchone()[0] for i in ['MIN','MAX']],unit='s')
+    dates = [conn.execute("SELECT %s(UNIXTIME) from MEASUREMENTS"%i).fetchone()[0] for i in ['MIN','MAX']]
+    dbrange = pd.to_datetime(dates,unit='s')
     info('Min-Max Datetime:' + str(dbrange.astype(str).values))
 
 
     background = pd.DataFrame([['Start Date',dbrange[0]],['End Date',dbrange[1]],['No Items',dblength],['columns',' | '.join(cols)]],columns = ['Name','Value'])
 
 
-    return dblength, cols, dbrange, background
+    start_date = dbrange[0]
+    end_date = dbrange[1]
+    
+    # if start_date== end_date:
+    #     info('START === END : adding a day')
+    #     from datetime import timedelta
+    #     end_date +=  timedelta(days=1)
+    # not needed as ut uses actual datetimes
+    
+    params['start_date_str'] = str(start_date)
+    params['end_date_str'] = str(end_date)
+
+    #"%Y-%m-%dT%H:%M:%S"
+    params['start_date'] = int(dates[0])
+    params['end_date']   = int(dates[1])
+        
+    # params['sliders'] = []
+    selected = ["UNIXTIME"]
+    pm = list(filter(lambda x: 'PM' in x, cols))
+    selected.extend(pm)
+    params['columns'] = selected
+
+    return dblength, cols, dbrange, background,params

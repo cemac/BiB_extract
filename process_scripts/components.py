@@ -78,10 +78,11 @@ def postparse(contains,haskey):
             options=[
             {"label": "Debug: First 2000", "value": 'limit'},
             {"label": "Calculate Locations", "value": 'get_loc', "disabled": not haskey},
+            {"label": "(skip missing location)", "value": 'noloc', "disabled": not haskey},
             {"label": "Return Bins", "value": 'get_bins', "disabled": 'BINS' not in contains},
             {"label": "Include Static Results", "value": 'get_all'},
             {"label": "Anonymise (Skips Serial)", "value": 'anon'},
-            {"label": "Hour Avg. (PM 1,2.5,10,T,RH only)", "value": 'group','disabled':True},
+            # {"label": "Hour Avg. (PM 1,2.5,10,T,RH only)", "value": 'group','disabled':True},
             ],
             value=[],
             id="post_process",
@@ -96,7 +97,7 @@ def button(id,name,clr='primary',disabled=False):
     stl = {'visibility':'visible'}
     if disabled: stl = {'visibility':'hidden'}
     
-    return dbc.Button([dbc.Spinner(size="sm",children=[html.Div(id= id+'_spinner'),name]) ], color=clr, block=True, id = id, outline = True, className="mr-1",style = stl )
+    return dbc.Button([dbc.Spinner(spinner_style={'pointer-events': 'none'},size="sm",children=[html.Div(id= id+'_spinner'),name]) ], color=clr, block=True, id = id, outline = True, className="mr-1",style = stl )
 
       
 

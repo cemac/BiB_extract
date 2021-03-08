@@ -23,13 +23,15 @@ if sys.version[0]!= '3':
 from process_scripts import log_manager
 log = log_manager.getlog(__name__)
 info = log.info
+
+print(chr(27) + "[2J", '\n\n') ## clear console using escape characters
 info('Importing Libraries')
 
 
 '''
 Imports
 '''
-import dash,sqlite3,os
+import dash,sqlite3,os,time
 import dash_daq as daq
 import dash_html_components as html
 import dash_core_components as dcc
@@ -44,7 +46,7 @@ import plotly.express as px
 from process_scripts.components import *
 from process_scripts.mdtext import *
 from process_scripts.readsql import *
-from process_scripts.parameters import params, startup
+from process_scripts.parameters import  startup
 from process_scripts.decode import *
 
 if os.path.isfile(__KEY__): 
@@ -52,30 +54,31 @@ if os.path.isfile(__KEY__):
 else: 
     log.warning('LOC FILE: %s not found!'%__KEY__)
     haskey=False
+    
 
 info('Loading Database')
+
 conn = sqlite3.connect(__DBLOC__,check_same_thread=False)# need this to work in flask
 
-# tables = conn.execute('SELECT * from sqlite_master').fetchall()
-# info('tables ' +str(tables))
-
-
+external_stylesheets = [dbc.themes.COSMO]
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+dblength, cols, dbrange, background, params = startup(conn,info)
 
 
 ''' 
 Main Application
 '''
-external_stylesheets = [dbc.themes.COSMO]#'https://codepen.io/anon/pen/mardKv.css']
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+#'https://codepen.io/anon/pen/mardKv.css']
 df = None
-
+changed = True
+computing = False
 
 '''
 Layout
 
 https://bootswatch.com/cosmo/
 '''
-dblength, cols, dbrange, background = startup(conn,info)
+
 
 '''
 Left column Row 1
@@ -92,6 +95,7 @@ leftcol = dbc.Col(
             style = center,
             align="center",
             children = [
+                html.Div([],id='warn'),
                 timein,# md time desc 
                 daterange(dbrange,app), # date selector
                 br,br,
@@ -202,30 +206,56 @@ eo = Input('date', 'end_date')
 po = Input('post_process', 'value')
 io = Input('itemselect', 'value')
 
-@app.callback([Output("get_csv",'style'),Output("get_data",'style'),Output("precomputedata",'children'),Output("postcomputedata",'children')], [so,eo,po,io])
+@app.callback([Output("get_csv",'style'),
+Output("get_data",'style'),
+Output("precomputedata",'children'),
+Output("postcomputedata",'children'),
+Output("warn",'children'),
+Output("get_size",'disabled')
+], [so,eo,po,io])
 def update_range(start_date, end_date,slide,cols): 
-    global params,df
     
-    print(start_date)
-    del df
-    df = None
+    global params,df,changed,computing
+    # print('change',params['precompute'])
     
-    start_date = start_date.split('T')[0]
-    end_date = end_date.split('T')[0]
-    
-    
-    params['start_date_str'] = start_date
-    params['end_date_str'] = end_date
+    if not computing:
+        warn = []
+        if params['precompute']:
+                
+            del df
+            df = None
+            
+            
+            start_date = start_date.split('T')[0]
+            end_date = end_date.split('T')[0]
+            
+            
+            params['start_date_str'] = start_date
+            params['end_date_str'] = end_date
 
-    #"%Y-%m-%dT%H:%M:%S"
-    params['start_date'] = int((datetime.strptime(start_date, "%Y-%m-%d")-datetime(1970,1,1)).total_seconds())
-    params['end_date']   = int((datetime.strptime(end_date, "%Y-%m-%d")-datetime(1970,1,1)).total_seconds())
+            #"%Y-%m-%dT%H:%M:%S"
+            params['start_date'] = int((datetime.strptime(start_date, "%Y-%m-%d")-datetime(1970,1,1)).total_seconds())
+            # params['end_date']   = int((datetime.strptime(end_date, "%Y-%m-%d")-datetime(1970,1,1)).total_seconds())
+                
+            if params['start_date_str'] != params['end_date_str']:
+                params['end_date']   = int((datetime.strptime(end_date, "%Y-%m-%d")-datetime(1970,1,1)).total_seconds())
+            else:
+                info('START === END : adding a day')
+                params['end_date']   = int((datetime.strptime(end_date, "%Y-%m-%d")-datetime(1969,12,31)).total_seconds())
+            
+            
+                    
+            params['sliders'] = slide    
+            params['columns'] = cols
+                
+            # print(params['start_date'],params['end_date'])
+            info('inputs')
+            print (params, start_date, end_date)
+            changed=True
+    else:
+        warn = dbc.Alert("There is already a computation under way! Please do not change any options to prevent errors. ", color="danger")
         
-    params['sliders'] = slide    
-    params['columns'] = cols
-        
-    print(params['start_date'],params['end_date'])
-    return {'visibility':'hidden'},{'visibility':'hidden'},[],[]
+    return {'visibility':'hidden'},{'visibility':'hidden'},[],[],warn,False
     
 
 
@@ -237,21 +267,30 @@ def update_range(start_date, end_date,slide,cols):
 '''
 Precompute
 '''
-@app.callback([Output("get_csv",'style'),Output("get_data",'style'),Output("precomputedata",'children'),Output("get_size_spinner", "children"),Output("postcomputedata",'children')], Input("get_size", "n_clicks"))
+@app.callback([Output("get_csv",'style'),
+Output("get_data",'style'),
+Output("precomputedata",'children'),
+Output("get_size_spinner", "children"),
+Output("postcomputedata",'children'),
+Output("get_size",'disabled'),
+Output("get_data",'disabled')
+], Input("get_size", "n_clicks"))
 def input_triggers_spinner(value):
-    global params,conn
+    global params,conn,changed
+
+    if (params['start_date']== None or not params['precompute']) or not changed: 
+        return {'visibility':'hidden'},{'visibility':'hidden'},[],None ,None,False,False## we are still loading
     
-    if params['start_date']== None: 
-        return {'visibility':'hidden'},{'visibility':'hidden'},[],None ,None## we are still loading
     
-    
-    print(params)
+
 
     sqlquery = makesql(params,count=True)
     #"SELECT COUNT() from MEASUREMENTS where UNIXTIME between %(start_date)d and %(end_date)d"%params
     info(sqlquery)
     
     scount = conn.execute(sqlquery).fetchone()[0]
+    
+    
     
     print(scount)
     
@@ -260,8 +299,10 @@ def input_triggers_spinner(value):
     
     series = pd.DataFrame(data=zip(sdata,sdata.values()), columns=['Description','Value'])
     
-    time.sleep(1)
-    return {'visibility':'hidden'},{'visibility':'visible'},table(series,tid = 'precompt'),[],None
+    
+    # time.sleep(1)
+    return {'visibility':'hidden'},{'visibility':'visible'},table(series,tid = 'precompt'),[],None,True,False
+
 
 
 
@@ -275,15 +316,24 @@ Output("get_data_spinner", "children"),
 Output("postcomputedata",'children'),
 Output("itable_tab",'disabled'),
 Output("iscatter_tab",'disabled'),
-Output("imap_tab",'disabled')],
+Output("imap_tab",'disabled'),
+Output("get_data",'disabled')],
  Input("get_data", "n_clicks"))
 def input_triggers_spinner2(value):
-    global params,conn,df
+    global params,conn,df,changed,computing
 
-    if params['start_date']== None: return {'visibility':'visible'},None ,None,True,True,True
+    if computing:
+        return {'visibility':'hidden'},[dbc.Spinner(color="Danger",size='sm')] ,None,True,True,True,True
+    
+    # print(computing,'computing')
+
+    if params['start_date']== None or not params['precompute'] or not changed : return {'visibility':'hidden'},None ,br,True,True,True,False
     ## we are still loading
+        
+        
+    log.debug(params)
 
-
+    computing = True
 
     sqlquery = makesql(params)
     
@@ -309,8 +359,10 @@ def input_triggers_spinner2(value):
 
     if 'get_loc' in params['sliders']:
         info('decoding location data')
-        df,time = par_loc(df.reset_index(),False) # false keeps bad locations
-        info(time)
+        df,ctime = par_loc(df.reset_index(),False) # false keeps bad locations
+        if 'noloc' in params['sliders']:
+            df.dropna(subset=['LON'],inplace = True)
+        info(ctime)
         loc=True
     
 
@@ -319,21 +371,23 @@ def input_triggers_spinner2(value):
     series = pd.DataFrame(data=zip(sdata,sdata.values()), columns=['Description','Value'])
 
     
-    gc = 'PM1 PM3 PM2.5 PM10 T RH'.split()
-    cols = list(filter(lambda x:x in gc ,df.columns))
+    # gc = 'PM1 PM3 PM2.5 PM10 T RH'.split()
+    # cols = list(filter(lambda x:x in gc ,df.columns))
+    # 
     
-    
-    dropdown = dbc.DropdownMenu(
-    label="Select Plot Variable",id='pltdrop',
-    children=[dbc.DropdownMenuItem(i, href = '#'+i) for i in cols],
-    )
+    # dropdown = dbc.DropdownMenu(
+    # label="Select Plot Variable",id='pltdrop',
+    # children=[dbc.DropdownMenuItem(i, href = '#'+i) for i in cols],
+    # )
 
 
-
+    changed = False
+    computing = False
+    time.sleep(.5)
 
     return {'visibility':'visible'},None, [ br, md('''
     
-    #### Select what to plot: (first 2000 values)'''), dropdown, br, table(series,tid = 'postcompt'),],False,False, not loc
+    #### Select what to plot: (first 2000 values)'''), br, table(series,tid = 'postcompt'),],False,False, not loc, True
 
 
 
@@ -374,10 +428,16 @@ TAB VIEW
 '''
 @app.callback([Output("table_spin", "children"),Output("scatter_spin", "children")], [Input("tabs", "active_tab"),Input('url','hash')])
 def tabulate(activetabs,hashkey):
-    global df
+    global df,params
+    # 
+    # print
+    # (activetabs,hashkey)
     
-    print
-    (activetabs,hashkey)
+    if activetabs == 'filter':
+        info('enabling filter options')
+        params['precompute']= True
+        return None,None
+    
     
     if type(df) != type(None):
         
@@ -446,10 +506,8 @@ def tabulate(activetabs,hashkey):
 
         elif activetabs == 'map_tab': 
 
-            
-            dfp = df['LAT LON'.split()][np.isnan(df.LAT)==False]
-            print(dfp)
-        
+            dfp = df['LAT LON'.split()].dropna(subset=['LON'])
+
             # 
             # 
             # dfp['hour'] = dfp.index.hour + (dfp.index.minute/15)//4
@@ -459,7 +517,11 @@ def tabulate(activetabs,hashkey):
             
             mid = [dfp.LAT.mean(), dfp.LON.mean()]
             
-            markers = [dl.CircleMarker( dl.Tooltip(str(row)), center=[row[1].LAT, row[1].LON], radius=30, id=str(row[0]), stroke=True,color='red',weight=1,fillColor='blue' ) for row in df.iterrows()]
+            print(mid)
+            
+            markers = [dl.CircleMarker( dl.Tooltip(str(row)), center=mid, radius=30, id=str(row[0]), stroke=True,color='red',weight=1,fillColor='blue' ) for row in df.iterrows()]
+
+            
             
             plot =  html.Div(
                 id="bibmap",
@@ -472,6 +534,10 @@ def tabulate(activetabs,hashkey):
             )
             
             return None,[md('# Location overview  '), br,br,plot]
+
+        
+
+
 
 
         else:
@@ -519,4 +585,18 @@ def tabulate(activetabs,hashkey):
 start Application
 '''
 if __name__ == '__main__':
+    
+    # webbrowser.open("http://127.0.0.1:8050")
+    from threading import Thread
+    
+    def openbrowser():
+        import webbrowser
+        time.sleep(5)
+        webbrowser.open("http://127.0.0.1:8050")
+        return True
+    
+    Thread(target = openbrowser).start()
+    log.info('\n\n --- opening browser at http://127.0.0.1:8050 ---\n\n')
+    
     app.run_server(debug=True)
+    
