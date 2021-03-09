@@ -84,7 +84,11 @@ dependencies:
   - zlib=1.2.11=h1de35cc_3
   - zstd=1.4.5=h41d2c2f_0
   - pip:
+    - dash-core-components==1.15.0
+    - dash-html-components==1.1.2
     - dash-leaflet==0.1.13
+    - dash-renderer==1.9.0
+    - dash-table==4.11.2
     - dill==0.3.3
     - flask-compress==1.9.0
     - geobuf==1.1.1

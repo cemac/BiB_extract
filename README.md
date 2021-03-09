@@ -45,6 +45,9 @@ If you plan on saving any extracted data, you will need to set the directory in 
 - [ ] command line arguments 
 - [ ] module command for use on ARC
 - [ ] groupby hour
-
+- [ ] negatives on lon (sensor of decode issue?)
+- [ ] awaiting new dash version to fix superclustering 
+- [ ] bin merging
+  
 ## Note: 
 On Windows, Pandarallel will works only if the Python session (python, ipython, jupyter notebook, jupyter lab, ...) is executed from Windows Subsystem for Linux (WSL).

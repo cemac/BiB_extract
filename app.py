@@ -31,18 +31,24 @@ info('Importing Libraries')
 '''
 Imports
 '''
+
+import dash_leaflet as dl
+            # import plotly.express as px
+import dash_leaflet.express as dlx
+            #https://github.com/thedirtyfew/dash-leaflet/issues/24
+            
 import dash,sqlite3,os,time
 import dash_daq as daq
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
-import dash_leaflet as dl
 
 from dash.dependencies import Input, Output
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
-import plotly.express as px
+
+            
 from process_scripts.components import *
 from process_scripts.mdtext import *
 from process_scripts.readsql import *
@@ -61,7 +67,7 @@ info('Loading Database')
 conn = sqlite3.connect(__DBLOC__,check_same_thread=False)# need this to work in flask
 
 external_stylesheets = [dbc.themes.COSMO]
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets,prevent_initial_callbacks=True)
 dblength, cols, dbrange, background, params = startup(conn,info)
 
 
@@ -74,9 +80,7 @@ changed = True
 computing = False
 
 '''
-Layout
-
-https://bootswatch.com/cosmo/
+Layout https://bootswatch.com/cosmo/
 '''
 
 
@@ -88,14 +92,17 @@ bginfo = dbc.Row(
             align="center",
             children = [
                 banner,
-                header,# introduction        
+                header,# introduction
+                html.Div([],id='warn'),          
+                #             html.Div(dl.Map(dl.TileLayer()),style={'width': '100vw', 'height': '90vh'}),
             ],)
 
 leftcol = dbc.Col(
             style = center,
             align="center",
             children = [
-                html.Div([],id='warn'),
+
+                
                 timein,# md time desc 
                 daterange(dbrange,app), # date selector
                 br,br,
@@ -170,8 +177,10 @@ tab_lineplot = dbc.Card(
 
     
 tab_leaflet = dbc.Card(
-    dbc.CardBody( br),
-    className="mt-3",
+dbc.CardBody(   
+dcc.Loading(id = 'map_spin',
+children=['No Map Loaded...'])),
+className="mt-3",
 )
     
 
@@ -253,7 +262,7 @@ def update_range(start_date, end_date,slide,cols):
             print (params, start_date, end_date)
             changed=True
     else:
-        warn = dbc.Alert("There is already a computation under way! Please do not change any options to prevent errors. ", color="danger")
+        warn = dbc.Alert("There is already a computation under way! Please do not change any options to prevent errors. If in doubt, restart app. ", color="danger")
         
     return {'visibility':'hidden'},{'visibility':'hidden'},[],[],warn,False
     
@@ -387,7 +396,10 @@ def input_triggers_spinner2(value):
 
     return {'visibility':'visible'},None, [ br, md('''
     
-    #### Select what to plot: (first 2000 values)'''), br, table(series,tid = 'postcompt'),],False,False, not loc, True
+    ## Table, Grouped Scatter and GeoLocation tabs tab_overview
+    If you want to explore the dataset you may need to scroll up.
+    
+    '''), br, table(series,tid = 'postcompt'),],False,False, not loc, True
 
 
 
@@ -426,7 +438,10 @@ def input_triggers_spinner3(value):
 ''' 
 TAB VIEW
 '''
-@app.callback([Output("table_spin", "children"),Output("scatter_spin", "children")], [Input("tabs", "active_tab"),Input('url','hash')])
+@app.callback([Output("table_spin", "children"),
+Output("scatter_spin", "children"),
+Output("map_spin", "children")],
+ [Input("tabs", "active_tab"),Input('url','hash')])
 def tabulate(activetabs,hashkey):
     global df,params
     # 
@@ -436,7 +451,7 @@ def tabulate(activetabs,hashkey):
     if activetabs == 'filter':
         info('enabling filter options')
         params['precompute']= True
-        return None,None
+        return None,None,None
     
     
     if type(df) != type(None):
@@ -444,14 +459,20 @@ def tabulate(activetabs,hashkey):
         # '''
         # table 
         # '''
+        
         if activetabs == 'table_tab': 
 
-            newdf = df.head(2000).reset_index()
+            message = md('''
+            # Table Sample
+            Showing a *random* sample of *500* values from the selected dataframe
+            ''')
+            
+            newdf = df.sample(500).reset_index()
             try: newdf.drop(['UNIXTIME'],inplace=True)
             except: None
             
             print(newdf)
-            return ['Showing the first 2000 values of the dataframe',br,table(newdf,'tab_table',{'width':'80%','margin':'auto'})],None
+            return [message,br,table(newdf,'tab_table',{'width':'80%','margin':'auto'})],None,None
 
 
         # '''
@@ -501,39 +522,65 @@ def tabulate(activetabs,hashkey):
             plot = html.Img(src="data:image/png;base64,{}".format(IObytes))
 
 
-            return None,[md('# A grouped summary of the following dataframe:'),br,br,table(dfp.describe().reset_index(),'descplot'), br,br,plot]
+            return None,[md('# A grouped summary of the following dataframe:'),br,br,table(dfp.describe().reset_index(),'descplot'), br,br,plot],None
 
 
         elif activetabs == 'map_tab': 
 
-            dfp = df['LAT LON'.split()].dropna(subset=['LON'])
+            dfp = df['LAT LON'.split()].dropna(subset=['LON']).sample(1000)
 
-            # 
-            # 
-            # dfp['hour'] = dfp.index.hour + (dfp.index.minute/15)//4
-            # dfp = dfp.groupby('hour').first().reset_index()
-            
             print(dfp)
             
-            mid = [dfp.LAT.mean(), dfp.LON.mean()]
+            
+            desc = md('''
+            # Location overview  
+            An interactive map showing a *random* subset of *1000* datapoints from the selected subset. 
+            These vary between each initiation due to the above reason. 
+            
+            The centre of the map is calculated by taking the median latitude and Longitude, the colour shows the time of day, and the tooltip produces the index value from the dataset. 
+            ''')
+            
+            
+            log.critical('Known: -ves on Longitude are lost!!!!!')
+
+            
+            mid = (dfp.LAT.median(), -dfp.LON.median())
+            
+            dfp.columns = ['lat','lon']
             
             print(mid)
             
-            markers = [dl.CircleMarker( dl.Tooltip(str(row)), center=mid, radius=30, id=str(row[0]), stroke=True,color='red',weight=1,fillColor='blue' ) for row in df.iterrows()]
+            cc = [dl.CircleMarker( dl.Tooltip(str(row[0])), center=(row[1].lat,-row[1].lon), radius=5, stroke=True,color='none',weight=0,fillColor='blue' ) for row in dfp.iterrows()]
+            circles = dl.LayerGroup(cc,id='markers')
 
-            
+
+            ''' when the regeneratorRuntime issue is solved '''
+            log.critical(' Known: cannot show superCluster due to regeneratorRuntime issue')
+            # ll = dlx.dicts_to_geojson(dfp.to_dict('records'))
+            # 
+            # # markers = dl.GeoJSON(data=ll, cluster=True, zoomToBoundsOnClick=True,
+            # #        # superClusterOptions={"radius": 100}
+            # #        )
+            # markers = []
+                     
             
             plot =  html.Div(
                 id="bibmap",
-                children=
-                dl.Map([dl.TileLayer(),dl.LayerGroup(markers,id='markers')],    
-            #dl.WMSTileLayer(url="https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi",
-                                                    # layers="nexrad-n0r-900913", format="image/png", transparent=True)],
-                   center=mid, zoom=10,
-                   style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"})
+                children=[ desc,br,br,
+                
+                
+                dl.Map([dl.TileLayer(),circles], center=mid, zoom=11,style={'width': '90vw', 'height': '30vh'})
+                
+                # dl.WMSTileLayer(url="https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi",
+                 # layers="nexrad-n0r-900913", format="image/png", transparent=True)
+            
+            ],
+            
+            # style={'width': '100vw', 'height': '50vh', 'margin': "auto", "display": "block"}
             )
             
-            return None,[md('# Location overview  '), br,br,plot]
+
+            return None,None,plot
 
         
 
@@ -541,10 +588,10 @@ def tabulate(activetabs,hashkey):
 
 
         else:
-            return None,None
+            return None,None,None
 
     else:
-        return None,None
+        return None,None,None
 
 
 

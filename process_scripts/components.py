@@ -118,7 +118,7 @@ def maketabs(tab_overview,tab,tab_table,tab_lineplot,tab_leaflet,table=False, sc
         dbc.Tab(tab_table, label="View Table",tab_id ='table_tab',id='itable_tab',disabled=not table),
         dbc.Tab(tab_lineplot, label="View Scatter",tab_id='scatter_tab', id='iscatter_tab', disabled=not scatter
         ),
-        dbc.Tab(tab_leaflet, label="View Map",id='imap_tab',tab_id='map_tab', disabled=not tmap),
+        dbc.Tab(tab_leaflet, label="View Map",id='imap_tab',tab_id='map_tab', disabled= tmap),
 
     ]
     

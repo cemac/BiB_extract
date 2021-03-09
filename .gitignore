@@ -1,7 +1,7 @@
 *.db
 *.csv
 *.pem
-
+data_archive/
 # Logs
 logs
 *.log
