@@ -563,16 +563,17 @@ def tabulate(activetabs,hashkey):
             # #        )
             # markers = []
                      
-            
+
+
+        
             plot =  html.Div(
                 id="bibmap",
                 children=[ desc,br,br,
                 
+
                 
-                dl.Map([dl.TileLayer(),circles], center=mid, zoom=11,style={'width': '90vw', 'height': '30vh'})
-                
-                # dl.WMSTileLayer(url="https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi",
-                 # layers="nexrad-n0r-900913", format="image/png", transparent=True)
+                dl.Map([dl.TileLayer(),circles], center=mid, zoom=12,style={'width': '90vw', 'height': '50vh'})
+
             
             ],
             
