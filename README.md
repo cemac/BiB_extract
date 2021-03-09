@@ -7,6 +7,13 @@ An extraction app for the encrypted sensor databases.
 - `python app.py`
 - navigate to `http://127.0.0.1:8050/` in a web browser - chrome works well
 
+# Command Line interface
+For information on the command line interface (non-gui), type in `python bib_cli.py --help` or visit the documentation at: 
+
+https://daniel-ellis.medium.com/using-the-borninbradford-sql-database-extract-command-line-interface-f6db6a910c11
+
+
+
 #### Port in use error 
 If you get a message that the port is already in use, that means a previous version of the code has not been terminated cleanly. Use (with caution!)`pkill -9 python` for linux or windows task manager to close all python instances before trying again. 
 
