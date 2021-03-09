@@ -13,15 +13,17 @@ For information on the command line interface (non-gui), type in `python bib_cli
 https://daniel-ellis.medium.com/using-the-borninbradford-sql-database-extract-command-line-interface-f6db6a910c11
 
 
-
 #### Port in use error 
 If you get a message that the port is already in use, that means a previous version of the code has not been terminated cleanly. Use (with caution!)`pkill -9 python` for linux or windows task manager to close all python instances before trying again. 
 
 
 
 ## Install 
-1. Start by installing conda on the windows subsystem as shown in 
+0. Start by installing conda on the windows subsystem as shown in 
 http://mmb.irbbarcelona.org/webdev/slim/molywood/public/tutorials/windows_sub
+
+1. Alternatively use 
+https://docs.microsoft.com/en-us/windows/wsl/install-win10
 
 2. Open command line/terminal 
 3. Create conda environment: `conda env create -f bibview.yml`
@@ -51,7 +53,7 @@ If you plan on saving any extracted data, you will need to set the directory in 
 
 
 ## ToDo
-- [ ] command line arguments 
+- [x] command line arguments 
 - [ ] module command for use on ARC
 - [ ] groupby hour
 - [ ] negatives on lon (sensor of decode issue?)
