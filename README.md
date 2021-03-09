@@ -13,7 +13,9 @@ If you get a message that the port is already in use, that means a previous vers
 
 
 ## Install 
-1. Install anaconda python from continum.io
+1. Start by installing conda on the windows subsystem as shown in 
+http://mmb.irbbarcelona.org/webdev/slim/molywood/public/tutorials/windows_sub
+
 2. Open command line/terminal 
 3. Create conda environment: `conda env create -f bibview.yml`
 
