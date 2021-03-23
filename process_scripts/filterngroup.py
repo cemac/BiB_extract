@@ -1,7 +1,12 @@
 import pandas as pd
 import numpy as np
-from pandarallel import pandarallel
-pandarallel.initialize()
+try:
+    from pandarallel import pandarallel
+    pandarallel.initialize(progress_bar=True)
+    par = True
+except ImportError:
+    print('no pandarallel')
+    par = False
 
 
 __readfile__ = 'data.csv'
@@ -14,11 +19,17 @@ def todate(x):
 df = pd.read_csv(__readfile__)
 
 print('getting datetime')
-df['MINUTES'] = df.parallel_apply(todate,axis=1)
+if par:
+    df['MINUTES'] = df.parallel_apply(todate,axis=1)
+else:
+    df['MINUTES'] = df.apply(todate,axis=1)
 
 print('df loaded')
 
-dfg = df.groupby('MINUTES').parallel_apply(np.mean)
+if par:
+    dfg = df.groupby('MINUTES').parallel_apply(np.mean)
+except:
+    dfg = df.groupby('MINUTES').apply(np.mean)
 
 
 
