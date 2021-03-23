@@ -9,9 +9,13 @@ import pandas as pd
 import numpy as np
 import time,os,sys
 
-from pandarallel import pandarallel
-# pandarallel.initialize()
-pandarallel.initialize(progress_bar=True)
+try:
+    from pandarallel import pandarallel
+    pandarallel.initialize(progress_bar=True)
+    par = True
+except ImportError:
+    print('no pandarallel')
+    par = False
 
 
 import sys
@@ -39,8 +43,9 @@ def todate(x):
 def par_date(df):
     df.index = df.parallel_apply(todate,axis=1)
     return df
-    
-
+def serial_date(df):
+    df.index = df.apply(todate,axis=1)
+    return df
 
 
 def convert_bytes(num):
