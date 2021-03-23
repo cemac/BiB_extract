@@ -20,4 +20,3 @@ dependencies:
   - tabulate=0.8.9
   - pip:
     - dash-leaflet==0.1.13
-    - pandarallel==1.5.2
