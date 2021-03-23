@@ -15,6 +15,7 @@ try:
     par = True
 except ImportError:
     print('no pandarallel')
+    print('WARN :: Not using the multiple cores on your computer significally increases computation time for location and date decoding.')
     par = False
 
 
@@ -41,11 +42,13 @@ Get datetime for df
 def todate(x):
     return pd.to_datetime(x['UNIXTIME'],unit='s')
 def par_date(df):
-    df.index = df.parallel_apply(todate,axis=1)
+    global par
+    if par:
+        df.index = df.parallel_apply(todate,axis=1)
+    else:
+        df.index = df.apply(todate,axis=1)
     return df
-def serial_date(df):
-    df.index = df.apply(todate,axis=1)
-    return df
+
 
 
 def convert_bytes(num):
@@ -118,6 +121,7 @@ def parse(buff):
 Get the location 
 '''
 def par_loc(df,real=True):
+    global par
     
 
     start = time.time()
@@ -127,8 +131,10 @@ def par_loc(df,real=True):
     get values
     '''
     
-    
-    ret = df.LOC.parallel_map(parse)
+    if par:
+        ret = df.LOC.parallel_map(parse)
+    else: 
+        ret = df.LOC.map(parse)
 
     
     mid = time.time()
