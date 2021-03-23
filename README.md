@@ -29,6 +29,8 @@ https://docs.microsoft.com/en-us/windows/wsl/install-win10
 3. Create conda environment: `conda env create -f bibview.yml`
 
 4. OPT For parallel computation install pandarallel (THIS REQUIRES STEPS 0/1): 
+
+`conda activate bib;`
 `pip install 'pandarallel==1.5.2'`
 
 
