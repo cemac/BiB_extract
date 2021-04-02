@@ -22,7 +22,7 @@ if sys.version[0]!= '3':
 
 try:
 	dbloc = sys.argv[1]
-	if '.py' in :
+	if '.py' in dbloc:
 		__DBLOC__ = dbloc
 		print( 'FILE OVERIDE:,', dbloc)
 except: None
