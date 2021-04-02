@@ -20,6 +20,10 @@ import sys
 if sys.version[0]!= '3':
 	sys.exit('You are not using python 3 - ** sadface **')
 
+if '.py' in sys.argv[1]:
+	__DBLOC__ = sys.argv[1]
+	
+	
 from process_scripts import log_manager
 log = log_manager.getlog(__name__)
 info = log.info
