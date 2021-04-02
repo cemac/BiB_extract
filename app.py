@@ -535,7 +535,8 @@ def tabulate(activetabs,hashkey):
 
         elif activetabs == 'map_tab': 
 
-            dfp = df['LAT LON'.split()].dropna(subset=['LON']).sample(1000)
+            dfp = df['LAT LON'.split()].dropna(subset=['LON'])
+	    if len(dfp)>1000: dfp.dfp.sample(1000)
 
             print(dfp)
             
