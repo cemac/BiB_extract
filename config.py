@@ -1,12 +1,12 @@
 '''
-A configuration file that can be edited depending on the users configuration 
+A configuration file that can be edited depending on the users configuration
 '''
 
 
 
 #####################################
-__DBLOC__ = 'del.db'#'./portablesensor1_1.db'
-## change database location as required. 
+__DBLOC__ = 'calibration.db'#'./portablesensor1_1.db'
+## change database location as required.
 ######################################
 
 ######################################
@@ -16,6 +16,6 @@ __SAVELOC__ = './'
 
 ######################################
 # # MUST USE FULL FILEPATH
-__KEY__ = '/Users/wolfiex/bbkey/decrypt.pem'
+__KEY__ = '/Users/dna/bbkey/decrypt.pem'
 ## where the decryption key is stored
 ######################################

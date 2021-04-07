@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives import serialization
 
 import pandas as pd
 import numpy as np
-import time,os,sys
+import time,os,sys,pickle
 
 try:
     from pandarallel import pandarallel
@@ -73,17 +73,18 @@ def file_size(file_path):
 
 
 
-''' 
+'''
 Function globals
-'''    
+'''
 
-
-private_key = read_private(__KEY__)
-algorithm = padding.OAEP(
-        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-        algorithm=hashes.SHA256(),
-        label=None
-    )
+try:
+    private_key = read_private(__KEY__)
+    algorithm = padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+except:None
 
 '''
 Location functions
@@ -94,7 +95,7 @@ def convert_to_degrees(raw_value):
     degrees = int(decimal_value)
     mm_mmmm = (decimal_value - degrees)/0.6
     return degrees + mm_mmmm
-    
+
 def parse(buff):
     # __KEY__ = '/Users/wolfiex/bbkey/decrypt.pem'
     # private_key = read_private(__KEY__)
@@ -104,10 +105,10 @@ def parse(buff):
     #         label=None
     #     )
     try: loc = private_key.decrypt( buff, algorithm ).decode('utf-8')
-    except Exception as e: 
+    except Exception as e:
         print(e)
         return [None,None,None]
-        
+
     if loc == '__': return [np.nan,np.nan,np.nan]
     else:
         loc = loc.split('_')
@@ -118,35 +119,53 @@ def parse(buff):
 
 
 '''
-Get the location 
+Get the BINS
 '''
-def par_loc(df,real=True):
+def par_bins(df):
     global par
-    
-
     start = time.time()
 
+    if par:
+        df.BINS = df.BINS.parallel_map(pickle.loads)
+    else:
+        df.BINS = df.BINS.map(pickle.loads)
 
-    ''' 
+    end = time.time()
+    total = (end-start)/60
+
+
+    times = 'Bins extraction took %.2f minutes'%(total)
+
+    return df.set_index('index'),times
+
+
+'''
+Get the location
+'''
+
+def par_loc(df,real=True):
+    global par
+    start = time.time()
+
+    '''
     get values
     '''
-    
     if par:
         ret = df.LOC.parallel_map(parse)
-    else: 
+    else:
         ret = df.LOC.map(parse)
 
-    
+
     mid = time.time()
     print('\n merging df')
-    
+
     '''
     merge the two together
     '''
     df = pd.concat( [df.drop('LOC',axis=1), pd.DataFrame(data = ret.tolist(),columns='LAT LON ALT'.split())], axis = 1  )
 
     '''
-    get only the real results 
+    get only the real results
     '''
     if real: df = df[np.isnan(df.LAT)==False]
 
@@ -154,11 +173,7 @@ def par_loc(df,real=True):
     total = (end-start)/60
     parsetime = (end-mid)/60
 
-    
+
     times = 'This took %.2f minutes, of which decryption was %.2f minutes'%(total,parsetime)
 
     return df.set_index('index'),times
-
-
-
-
